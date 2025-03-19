@@ -5,9 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,12 +44,15 @@ type BraidMockServer struct {
 	subscriptions map[string]map[string]Subscription
 	versions      map[string]string
 	hashes        map[string]string
+	proxyURL      *url.URL
+	proxyClient   *http.Client
+	reverseProxy  *httputil.ReverseProxy
 	mu            sync.RWMutex
 	watcher       *fsnotify.Watcher
 }
 
 // NewBraidMockServer creates a new BraidMockServer
-func NewBraidMockServer(rootDir string) (*BraidMockServer, error) {
+func NewBraidMockServer(rootDir string, proxyURLStr string) (*BraidMockServer, error) {
 	// Create file watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -58,7 +64,27 @@ func NewBraidMockServer(rootDir string) (*BraidMockServer, error) {
 		subscriptions: make(map[string]map[string]Subscription),
 		versions:      make(map[string]string),
 		hashes:        make(map[string]string),
+		proxyClient:   &http.Client{Timeout: 30 * time.Second},
 		watcher:       watcher,
+	}
+
+	// Configure reverse proxy if URL is provided
+	if proxyURLStr != "" {
+		proxyURL, err := url.Parse(proxyURLStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy URL: %w", err)
+		}
+		server.proxyURL = proxyURL
+		server.reverseProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+
+		// Customize the director to preserve the original path
+		director := server.reverseProxy.Director
+		server.reverseProxy.Director = func(req *http.Request) {
+			director(req)
+			req.Host = proxyURL.Host
+		}
+
+		log.Printf("Proxy mode enabled: Requests not found locally will be forwarded to %s", proxyURLStr)
 	}
 
 	// Start watching for file changes
@@ -161,6 +187,13 @@ func (s *BraidMockServer) getPathFromResourceID(resourceID string) string {
 
 	// Create complete path
 	return filepath.Join(s.rootDir, resourceID+".braid")
+}
+
+// fileExists checks if a mock file exists for the given resource ID
+func (s *BraidMockServer) fileExists(resourceID string) bool {
+	filePath := s.getPathFromResourceID(resourceID)
+	_, err := os.Stat(filePath)
+	return err == nil
 }
 
 // AddSubscription adds a new subscription for a resource
@@ -314,14 +347,22 @@ func (s *BraidMockServer) sendPatchUpdate(sub Subscription, newData []byte, newH
 func (s *BraidMockServer) handleBraidRequest(w http.ResponseWriter, r *http.Request) {
 	resourceID := r.URL.Path
 
-	// Get path to the .braid file
-	filePath := s.getPathFromResourceID(resourceID)
+	// Check if we have a local mock file for this resource
+	if !s.fileExists(resourceID) {
+		// If not and we have a proxy configured, forward the request
+		if s.proxyURL != nil {
+			log.Printf("Resource %s not found locally, proxying to %s", resourceID, s.proxyURL.String())
+			s.proxyRequest(w, r)
+			return
+		}
 
-	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// No proxy configured, return 404
 		http.Error(w, "Resource not found", http.StatusNotFound)
 		return
 	}
+
+	// Get path to the .braid file
+	filePath := s.getPathFromResourceID(resourceID)
 
 	// Read file content
 	data, err := ioutil.ReadFile(filePath)
@@ -388,6 +429,56 @@ func (s *BraidMockServer) handleBraidRequest(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// proxyRequest forwards the request to the configured proxy server
+func (s *BraidMockServer) proxyRequest(w http.ResponseWriter, r *http.Request) {
+	if s.reverseProxy != nil {
+		// Use the configured reverse proxy
+		s.reverseProxy.ServeHTTP(w, r)
+		return
+	}
+
+	// If we don't have a reverse proxy (should not happen, but just in case),
+	// create a new request and handle it manually
+	proxyURL := *s.proxyURL
+	proxyURL.Path = r.URL.Path
+	proxyURL.RawQuery = r.URL.RawQuery
+
+	// Create a new request
+	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, proxyURL.String(), r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating proxy request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Copy headers
+	for key, values := range r.Header {
+		for _, value := range values {
+			proxyReq.Header.Add(key, value)
+		}
+	}
+
+	// Send the request
+	resp, err := s.proxyClient.Do(proxyReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error proxying request: %v", err), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Set status code
+	w.WriteHeader(resp.StatusCode)
+
+	// Copy response body
+	io.Copy(w, resp.Body)
+}
+
 // calculateHash generates a CRC32 hash of the data
 func calculateHash(data []byte) string {
 	table := crc32.MakeTable(crc32.IEEE)
@@ -403,10 +494,11 @@ func main() {
 	// Parse command line flags
 	dirFlag := flag.String("d", ".", "Directory containing .braid mock files")
 	portFlag := flag.Int("p", 3000, "Port to listen on")
+	proxyFlag := flag.String("proxy", "", "URL to proxy requests to when mock files aren't found")
 	flag.Parse()
 
 	// Create server
-	server, err := NewBraidMockServer(*dirFlag)
+	server, err := NewBraidMockServer(*dirFlag, *proxyFlag)
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
