@@ -1,0 +1,13 @@
+{
+  "id": "12345",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "firstName": "John",
+  "lastName": "Senas",
+  "foo": {
+    "bar": "baz"
+  },
+  "roles": ["user"],
+  "createdAt": "2024-03-15T12:00:00Z",
+  "lastLogin": "2024-03-18T08:30:00Z"
+}
