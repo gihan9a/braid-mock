@@ -5,7 +5,7 @@
   "firstName": "John",
   "lastName": "Senas",
   "foo": {
-    "bar": "baz"
+    "bar": "biz"
   },
   "roles": ["user"],
   "createdAt": "2024-03-15T12:00:00Z",
