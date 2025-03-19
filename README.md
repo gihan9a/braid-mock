@@ -23,17 +23,17 @@ A file-based mock server for the [Braid Protocol](https://braid.org/) that allow
 
 ```bash
 # Clone the repository
-git clone https://github.com/gihan9a/braid-mock-server.git
-cd braid-mock-server
+git clone https://github.com/gihan9a/braid-mock.git
+cd braid-mock
 
 # Build the server
-go build -o braid-mock-server ./cmd/server
+go build -o braid-mock ./cmd/server
 
 # Generate a default configuration file
-./braid-mock-server -generate-config
+./braid-mock -generate-config
 
 # Run the server (will use config.yml by default)
-./braid-mock-server
+./braid-mock
 ```
 
 ## How It Works
@@ -91,10 +91,10 @@ cors:
 
 ```bash
 # Generate default config in the default location (config.yml)
-./braid-mock-server -generate-config
+./braid-mock -generate-config
 
 # Generate config in a custom location
-./braid-mock-server -generate-config -config-path my-custom-config.yml
+./braid-mock -generate-config -config-path my-custom-config.yml
 ```
 
 ## Usage
@@ -103,13 +103,13 @@ cors:
 
 ```bash
 # Using the default config.yml file
-./braid-mock-server
+./braid-mock
 
 # Using a custom configuration file
-./braid-mock-server -config my-custom-config.yml
+./braid-mock -config my-custom-config.yml
 
 # Override config file settings
-./braid-mock-server -p 8080 -d ./other-mock-dir
+./braid-mock -p 8080 -d ./other-mock-dir
 ```
 
 ### Command Line Options
@@ -149,7 +149,7 @@ This mock server implements these Braid protocol features:
 ## Project Structure
 
 ```
-braid-mock-server/
+braid-mock/
 ├── cmd/
 │   └── server/           # Entry point
 ├── internal/
