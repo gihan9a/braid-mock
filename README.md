@@ -11,6 +11,7 @@ A file-based mock server for the [Braid Protocol](https://braid.org/) that allow
 - **Proxy mode** - Forwards requests to a real backend when mock files aren't found
 - **TLS support** - Secure your mock server with HTTPS and auto-generated self-signed certificates
 - **CORS support** - Allow cross-origin requests from web applications
+- **Configuration file** - Simplified startup with YAML configuration
 
 ## Installation
 
@@ -22,13 +23,16 @@ A file-based mock server for the [Braid Protocol](https://braid.org/) that allow
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/braid-mock-server.git
+git clone https://github.com/gihan9a/braid-mock-server.git
 cd braid-mock-server
 
 # Build the server
 go build -o braid-mock-server ./cmd/server
 
-# Run the server
+# Generate a default configuration file
+./braid-mock-server -generate-config
+
+# Run the server (will use config.yml by default)
 ./braid-mock-server
 ```
 
@@ -53,56 +57,70 @@ mock-data/
 │   └── featured.braid       # Endpoint: /products/featured
 ```
 
+## Configuration
+
+### Configuration File
+
+The server uses a YAML configuration file (`config.yml` by default) with the following structure:
+
+```yaml
+server:
+  port: 3000                 # Server port
+  root_dir: "./mock-data"    # Directory containing .braid files
+
+proxy:
+  url: "http://api.example.com"  # URL to proxy requests to when mocks don't exist
+  insecure_verify: false     # Skip SSL certificate verification for proxy
+
+tls:
+  enabled: false             # Enable/disable TLS (HTTPS)
+  cert_file: "cert/cert.pem" # Path to TLS certificate
+  key_file: "cert/key.pem"   # Path to TLS key
+  generate_cert: false       # Auto-generate self-signed certificate
+
+cors:
+  enabled: true              # Enable/disable CORS support
+  allow_origins: "*"         # Allowed origins
+  allow_methods: "GET, POST, PUT, DELETE, OPTIONS, PATCH"  # Allowed HTTP methods
+  allow_headers: "Content-Type, Authorization, Subscribe, Version, Parents"  # Allowed headers
+  allow_credentials: false   # Allow credentials
+  max_age: 86400            # Max age for preflight requests
+```
+
+### Generating a Default Configuration
+
+```bash
+# Generate default config in the default location (config.yml)
+./braid-mock-server -generate-config
+
+# Generate config in a custom location
+./braid-mock-server -generate-config -config-path my-custom-config.yml
+```
+
 ## Usage
 
 ### Starting the Server
 
 ```bash
-# Basic usage with default settings
+# Using the default config.yml file
 ./braid-mock-server
 
-# Specify mock data directory
-./braid-mock-server -d ./mock-data
+# Using a custom configuration file
+./braid-mock-server -config my-custom-config.yml
 
-# Run on a different port
-./braid-mock-server -p 8080
-
-# Enable TLS with auto-generated certificate
-./braid-mock-server -tls -gen-cert
-
-# Proxy mode - forward requests to a real server when mocks don't exist
-./braid-mock-server -proxy http://api.example.com:8080
-
-# Proxy with insecure SSL (ignore certificate errors)
-./braid-mock-server -proxy https://api.example.com -insecure-proxy
-
-# Enable CORS for web applications
-./braid-mock-server -cors
-
-# Complete example with all features
-./braid-mock-server -d ./mock-data -p 8443 -tls -gen-cert -proxy https://api.example.com -insecure-proxy -cors
+# Override config file settings
+./braid-mock-server -p 8080 -d ./other-mock-dir
 ```
 
 ### Command Line Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-d <dir>` | Directory containing .braid mock files | `.` (current directory) |
-| `-p <port>` | Port to listen on | `3000` |
-| `-proxy <url>` | URL to proxy requests to when mock files aren't found | (none) |
-| `-insecure-proxy` | Skip SSL certificate verification when proxying requests | `false` |
-| **TLS Options:** | | |
-| `-tls` | Enable TLS (HTTPS) | `false` |
-| `-cert <file>` | Path to TLS certificate file | `cert/cert.pem` |
-| `-key <file>` | Path to TLS private key file | `cert/key.pem` |
-| `-gen-cert` | Generate a self-signed certificate if none exists | `false` |
-| **CORS Options:** | | |
-| `-cors` | Enable CORS support | `false` |
-| `-cors-origins` | Comma-separated list of allowed origins | `*` |
-| `-cors-methods` | Comma-separated list of allowed HTTP methods | `GET, POST, PUT, DELETE, OPTIONS, PATCH` |
-| `-cors-headers` | Comma-separated list of allowed HTTP headers | `Content-Type, Authorization, Subscribe, Version, Parents` |
-| `-cors-credentials` | Allow credentials (cookies, auth headers) | `false` |
-| `-cors-max-age` | Max age for CORS preflight requests (seconds) | `86400` (24 hours) |
+| `-config <file>` | Path to configuration file | `config.yml` |
+| `-generate-config` | Generate a default configuration file | `false` |
+| `-config-path <path>` | Path where config file should be generated | `config.yml` |
+| `-d <dir>` | Directory containing .braid mock files (overrides config) | (from config) |
+| `-p <port>` | Port to listen on (overrides config) | (from config) |
 
 ## Connecting with curl
 
@@ -141,6 +159,8 @@ braid-mock-server/
 │   └── utils/            # Utility functions
 ├── pkg/
 │   └── braidproto/       # Braid protocol types
+├── mock-data/            # Default directory for .braid files
+├── config.yml            # Configuration file
 ```
 
 ## License
