@@ -1,0 +1,35 @@
+{
+  "data": {
+    "lobbyID": "ACg8ocIalsDEoTgm3NEoMh5DVOG73Tn",
+    "slug": "support",
+    "isActive": true,
+    "activeSessionID": null,
+    "owners": [
+      {
+        "avatar": "https://example.com/avatar.png",
+        "firstName": "Foo",
+        "lastName": "Bar",
+        "url": ""
+      }
+    ],
+    "participants": [
+      {
+        "participantID": "01bfa9b0-3754-467c-a921-2674a817edfe",
+        "userID": "1050642677411874707",
+        "id": "",
+        "avatar": "https://example.com/avatar1.png",
+        "fullName": "Participant",
+        "lastName": "One"
+      },
+      {
+        "participantID": "01bfa9b0-3754-467c-a921-2674a817edff",
+        "userID": "1050642677411874723",
+        "id": "",
+        "avatar": "https://exmple.com/avatar2.png",
+        "fullName": "Participant",
+        "lastName": "Two"
+      }
+    ],
+    "bio": "This is a test lobby bio details",
+  }
+}

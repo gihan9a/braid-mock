@@ -1,0 +1,23 @@
+{
+  "data": {
+    "user": {
+      "about": null,
+      "avatar": "https://exmpale.com/avatar.png",
+      "createdAt": 1719479367,
+      "email": "foo@bar.com",
+      "firstName": "Foo",
+      "id": "1050642677411874707",
+      "lastName": "Bar",
+      "roleIDs": [
+        "admin"
+      ],
+      "signUpTimestamp": 1719479367,
+      "social": [],
+      "timezone": "UTC",
+      "updatedAt": 1741167586,
+      "onboarding": {
+        "0": true
+      }
+    }
+  }
+}
